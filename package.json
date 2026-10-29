@@ -1,0 +1,11 @@
+{
+  "name": "videoia",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "video:preview": "pnpm --filter @videoia/video preview",
+    "video:render": "pnpm --filter @videoia/video render",
+    "video:remotion": "pnpm --filter @videoia/video remotion:preview",
+    "design:dev": "pnpm --filter @videoia/design dev"
+  }
+}

@@ -1,0 +1,53 @@
+# Dependencias
+node_modules/
+.pnpm-store/
+
+# Compilación y artefactos de salida
+out/
+dist/
+build/
+.turbo/
+
+# Archivos de entorno y credenciales sensibles
+.env
+.env.*
+*.local
+*.pem
+*.key
+*.token
+*.cert
+
+# Modelos pesados de Inteligencia Artificial (se descargan vía scripts)
+apps/video/assets/whisper-base/
+*.bin
+*.pt
+*.onnx
+
+# Archivos temporales y de procesamiento
+apps/video/assets/voz_tmp/
+apps/video/videos/
+*.tmp
+*.trf
+*.tmp.mp4
+
+# Archivos sensibles / datos internos universitarios
+apps/video/transcripts/
+apps/video/processed_audio/
+apps/video/public/audio/
+apps/video/guion/Dirección*
+apps/video/preview.html
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

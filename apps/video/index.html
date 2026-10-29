@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anders Hejlsberg — Motion Graphics Kinetic Edition (HyperFrames)</title>
+  
+  <!-- Tipografías de Alta Gama -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- GSAP 3 -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  
+  <!-- Datos Maestros Sincronizados (CUES: Subtítulos cinéticos, Teclado, Pops y VFX) -->
+  <script src="cues.js"></script>
+
+  <style>
+    :root {
+      /* Paleta cromática y variables de diseño */
+      --bg-page: #F1F5F9;
+      --bg-canvas: #FFFFFF;
+      --bg-card: #FFFFFF;
+      --bg-card-subtle: #F8FAFC;
+      --text-main: #0F172A;
+      --text-muted: #64748B;
+      --text-light: #94A3B8;
+      --border-subtle: rgba(15, 23, 42, 0.08);
+      --border-card: rgba(15, 23, 42, 0.1);
+      
+      /* Colores de marca */
+      --csharp-color: #7C3AED;
+      --csharp-bg: #F5F3FF;
+      --ts-color: #0284C7;
+      --ts-bg: #F0F9FF;
+      --pascal-color: #EA580C;
+      --pascal-bg: #FFF7ED;
+      --dotnet-color: #4F46E5;
+      --dotnet-bg: #EEF2FF;
+      --accent-blue: #2563EB;
+      --accent-green: #059669;
+      
+      /* Sombras volumétricas suaves */
+      --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.04);
+      --shadow-card: 0 20px 40px -15px rgba(15, 23, 42, 0.08), 0 0 1px 1px rgba(15, 23, 42, 0.05);
+      --shadow-pop: 0 30px 60px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.06);
+
+      --font-main: 'Plus Jakarta Sans', system-ui, sans-serif;
+      --font-display: 'Space Grotesk', system-ui, sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #viewport-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Marco del video vertical 9:16 */
+    #stage-wrapper {
+      position: relative;
+      width: 486px;
+      height: 864px;
+      border-radius: 32px;
+      overflow: hidden;
+      box-shadow: 0 35px 80px -20px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.08);
+      background: var(--bg-canvas);
+    }
+
+    /* Escenario nativo HyperFrames (1080x1920) */
+    #stage {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1080px;
+      height: 1920px;
+      transform-origin: top left;
+      transform: scale(0.45);
+      background: #FFFFFF;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Cuadrícula técnica de fondo (Dot Matrix limpia) */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, rgba(15, 23, 42, 0.08) 1.5px, transparent 1.5px);
+      background-size: 36px 36px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Gradiente suave ambiental de luz */
+    .bg-ambient-light {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 25%, rgba(240, 249, 255, 0.85) 0%, rgba(255, 255, 255, 1) 75%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Flash de transición */
+    #flash-overlay {
+      position: absolute;
+      inset: 0;
+      background: #FFFFFF;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 95;
+    }
+
+    /* Clips (Escenas) */
+    .clip {
+      position: absolute;
+      inset: 0;
+      width: 1080px;
+      height: 1920px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 110px 70px 80px 70px;
+      z-index: 10;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    /* Badges Superiores con Estilo Píldora Minimalista */
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 34px;
+      border-radius: 999px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-sm);
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent-blue);
+      margin-bottom: 24px;
+    }
+
+    .badge-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent-blue);
+    }
+
+    /* Tipografía Principal en Negro Suave */
+    .headline-main {
+      font-family: var(--font-display);
+      font-size: 90px;
+      font-weight: 900;
+      line-height: 1.05;
+      text-align: center;
+      letter-spacing: -2px;
+      color: var(--text-main);
+      margin-bottom: 20px;
+    }
+
+    /* Tarjetas Isométricas / Flotantes Limpias */
+    .card-clean {
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      border-radius: 36px;
+      box-shadow: var(--shadow-pop);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Marco de Foto Real Sin Cortes */
+    .photo-frame {
+      width: 720px;
+      height: 720px;
+      border-radius: 40px;
+      overflow: hidden;
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-pop);
+      background: #F8FAFC;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .photo-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 25%;
+    }
+
+    /* Lower-Third Moderno y Luminoso */
+    .lower-third-light {
+      width: 860px;
+      margin-top: 32px;
+      padding: 30px 40px;
+      border-radius: 28px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .lt-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lt-name {
+      font-family: var(--font-display);
+      font-size: 52px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+
+    .lt-badge {
+      font-size: 22px;
+      font-weight: 800;
+      padding: 8px 20px;
+      border-radius: 999px;
+      background: var(--ts-bg);
+      color: var(--ts-color);
+      border: 1px solid rgba(2, 132, 199, 0.2);
+    }
+
+    .lt-sub {
+      font-size: 26px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* Iconos Vectoriales Nativos */
+    .icon-box-light {
+      border-radius: 30px;
+      background: #FFFFFF;
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .icon-box-light img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Ventanas de Código Modo Claro (Estilo macOS / Linear) */
+    .code-window-light {
+      width: 940px;
+      background: #FFFFFF;
+      border: 2px solid var(--border-card);
+      border-radius: 32px;
+      box-shadow: var(--shadow-pop);
+      overflow: hidden;
+      margin-top: 15px;
+    }
+
+    .code-header-light {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 28px;
+      background: #F8FAFC;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .code-dots {
+      display: flex;
+      gap: 10px;
+    }
+
+    .code-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #EF4444; }
+    .dot-yellow { background: #F59E0B; }
+    .dot-green { background: #10B981; }
+
+    .code-title-light {
+      font-family: var(--font-code);
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .code-body-light {
+      padding: 34px 40px;
+      font-family: var(--font-code);
+      font-size: 27px;
+      line-height: 1.6;
+      color: #1E293B;
+      white-space: pre-wrap;
+      min-height: 220px;
+      background: #FFFFFF;
+    }
+
+    .typing-cursor {
+      display: inline-block;
+      color: var(--accent-blue);
+      animation: blink 0.7s infinite;
+      font-weight: 900;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* Odómetro de Año */
+    .odometer-box-light {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 24px;
+    }
+
+    .odometer-num-light {
+      font-family: var(--font-display);
+      font-size: 110px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -3px;
+    }
+
+    .odometer-label-light {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 6px;
+    }
+
+    /* ════════════════════ CAPA MAESTRA DE SUBTÍTULOS CINÉTICOS (OPUS / TIKTOK) ════════════════════ */
+    #kinetic-subtitles-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 85;
+      overflow: hidden;
+    }
+
+    .kinetic-caption-bubble {
+      position: absolute;
+      left: 50%;
+      transform-origin: center center;
+      transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      max-width: 960px;
+      text-align: center;
+      will-change: transform, opacity;
+    }
+
+    /* Estilo 1: STICKER (Píldora 3D con sombra gruesa y contorno) */
+    .style-sticker {
+      background: #FFFFFF;
+      color: #0F172A;
+      border: 3.5px solid #0F172A;
+      padding: 16px 36px;
+      border-radius: 999px;
+      box-shadow: 0 14px 0 rgba(15, 23, 42, 0.9), 0 20px 30px rgba(15, 23, 42, 0.15);
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    /* Estilo 2: MARKER (Resaltador Fluorescente con Fondo Editorial) */
+    .style-marker {
+      background: #0F172A;
+      color: #FFFFFF;
+      padding: 16px 40px;
+      border-radius: 24px;
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+      font-family: var(--font-display);
+      font-size: 50px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    /* Estilo 3: OUTLINE (Tipografía Contorneada Moderna con Relleno Gradiente) */
+    .style-outline {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(16px);
+      border: 2px solid var(--border-card);
+      padding: 16px 36px;
+      border-radius: 999px;
+      box-shadow: var(--shadow-pop);
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 900;
+      color: #0F172A;
+    }
+
+    /* Estilo 4: MASK (Editorial Minimalista Alto Contraste) */
+    .style-mask {
+      background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+      color: #FFFFFF;
+      padding: 16px 38px;
+      border-radius: 28px;
+      box-shadow: 0 25px 50px -10px rgba(15, 23, 42, 0.3);
+      font-family: var(--font-display);
+      font-size: 48px;
+      font-weight: 900;
+    }
+
+    /* Palabras individuales dentro del subtítulo cinético */
+    .caption-word {
+      display: inline-block;
+      transition: all 0.14s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      opacity: 0.65;
+      transform: scale(0.96);
+    }
+
+    /* Palabra activa en el instante que la voz la pronuncia */
+    .caption-word.word-active {
+      opacity: 1 !important;
+      transform: scale(1.18) !important;
+      font-weight: 900;
+    }
+
+    .style-sticker .caption-word.word-active {
+      color: var(--accent-blue);
+      text-shadow: 0 0 2px rgba(37, 99, 235, 0.3);
+    }
+
+    .style-marker .caption-word.word-active {
+      color: #38BDF8;
+      background: rgba(56, 189, 248, 0.2);
+      padding: 0 10px;
+      border-radius: 12px;
+    }
+
+    .style-outline .caption-word.word-active {
+      color: var(--pascal-color);
+    }
+
+    .style-mask .caption-word.word-active {
+      color: #FACC15;
+      text-shadow: 0 0 16px rgba(250, 204, 21, 0.5);
+    }
+
+    .caption-word.word-emph {
+      text-decoration: underline;
+      text-decoration-thickness: 4px;
+      text-underline-offset: 6px;
+    }
+
+    /* ════════════════════ PANEL DE CONTROL EXTERNO ════════════════════ */
+    #player-controls {
+      position: absolute;
+      bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      padding: 12px 24px;
+      border-radius: 999px;
+      border: 1px solid var(--border-card);
+      box-shadow: var(--shadow-card);
+      z-index: 100;
+    }
+
+    .btn-control {
+      background: #F1F5F9;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      font-size: 14px;
+      font-weight: 700;
+      padding: 8px 18px;
+      border-radius: 999px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-control:hover {
+      background: var(--text-main);
+      color: #FFFFFF;
+    }
+
+    #btn-play-pause {
+      background: var(--accent-blue);
+      color: #FFFFFF;
+      font-weight: 800;
+    }
+
+    .slider-time {
+      width: 240px;
+      accent-color: var(--accent-blue);
+      cursor: pointer;
+    }
+
+    .time-display {
+      font-family: var(--font-code);
+      font-size: 14px;
+      color: var(--text-muted);
+      min-width: 140px;
+    }
+
+    .scene-selector {
+      background: #F8FAFC;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="viewport-container">
+    <div id="stage-wrapper">
+      
+      <!-- COMPOSICIÓN HYPERFRAMES NATIVA -->
+      <div 
+        id="stage" 
+        data-composition-id="anders" 
+        data-start="0" 
+        data-width="1080" 
+        data-height="1920" 
+        data-duration="53.5"
+      >
+        <!-- Fondo Técnico con Cuadrícula Punteada Luminosa -->
+        <div class="bg-grid"></div>
+        <div class="bg-ambient-light"></div>
+
+        <!-- Capa de Flash para transiciones de escena -->
+        <div id="flash-overlay"></div>
+
+        <!-- ═════════ AUDIO: MEZCLA Y SINCRONIZACIÓN AUTOMÁTICA ═════════ -->
+        <!-- 1. Voz en español maestro (Volumen 1.0) -->
+        <audio id="audio-voice" data-start="0" data-duration="53.5" data-volume="1.0" src="public/voz_masterizada.wav"></audio>
+        
+        <!-- 2. Pista de efectos de sonido maestra 100% sincronizada (teclas humanas, whoosh, impactos, pop, campanas) -->
+        <audio id="audio-sfx" data-start="0" data-duration="53.5" data-volume="0.40" src="public/sfx_track.wav"></audio>
+
+        <!-- 3. Música de fondo suave Lo-Fi (Volumen 0.08) -->
+        <audio id="audio-music" data-start="0" data-duration="53.5" data-volume="0.08" loop src="public/music/lofi.mp3"></audio>
+
+        <!-- ════════════════════ CAPA DE SUBTÍTULOS CINÉTICOS DINÁMICOS ════════════════════ -->
+        <div id="kinetic-subtitles-layer"></div>
+
+        <!-- ════════════════════ ESCENA 0: GANCHO (0s - 5.43s) ════════════════════ -->
+        <!-- ¿Sabías que el creador de C# también inventó TypeScript y Turbo Pascal? -->
+        <section id="scene-0" class="clip" data-start="0" data-duration="5.43" data-track-index="1">
+          <div class="badge-pill">
+            <div class="badge-dot"></div>
+            <span>Historia de la Computación</span>
+          </div>
+
+          <h1 class="headline-main" style="margin-top: 10px;">
+            ¿SABÍAS <span style="color: var(--accent-blue);">ESTO?</span>
+          </h1>
+
+          <!-- Diagrama de Constelación de 3 Lenguajes Interconectados -->
+          <div style="position: relative; width: 920px; height: 680px; margin-top: 25px;">
+            <!-- Centro: 1 Arquitecto Legendario -->
+            <div id="sc0-center-pill" style="position: absolute; top: 270px; left: 310px; width: 300px; padding: 20px 24px; border-radius: 999px; background: #0F172A; color: white; font-weight: 900; font-size: 26px; text-align: center; box-shadow: var(--shadow-pop); z-index: 10;">
+              1 ARQUITECTO
+            </div>
+
+            <!-- Nodo C# -->
+            <div id="sc0-node-csharp" class="icon-box-light" style="position: absolute; top: 10px; left: 60px; width: 230px; height: 230px; border-color: rgba(124, 58, 237, 0.3); background: var(--csharp-bg);">
+              <img src="public/icons/csharp.svg" alt="C#" />
+              <div style="position: absolute; bottom: -16px; background: var(--csharp-color); color: white; font-size: 18px; font-weight: 800; padding: 4px 16px; border-radius: 999px;">C#</div>
+            </div>
+
+            <!-- Nodo TypeScript -->
+            <div id="sc0-node-ts" class="icon-box-light" style="position: absolute; top: 10px; right: 60px; width: 230px; height: 230px; border-color: rgba(2, 132, 199, 0.3); background: var(--ts-bg);">
+              <img src="public/icons/typescript.svg" alt="TypeScript" />
+              <div style="position: absolute; bottom: -16px; background: var(--ts-color); color: white; font-size: 18px; font-weight: 800; padding: 4px 16px; border-radius: 999px;">TypeScript</div>
+            </div>
+
+            <!-- Nodo Turbo Pascal -->
+            <div id="sc0-node-pascal" class="icon-box-light" style="position: absolute; bottom: 10px; left: 345px; width: 230px; height: 230px; border-color: rgba(234, 88, 12, 0.3); background: var(--pascal-bg);">
+              <img src="public/icons2/pascal.svg" alt="Pascal" />
+              <div style="position: absolute; bottom: -16px; background: var(--pascal-color); color: white; font-size: 18px; font-weight: 800; padding: 4px 16px; border-radius: 999px;">Turbo Pascal</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ════════════════════ ESCENA 1: ANDERS HEJLSBERG (5.43s - 13.03s) ════════════════════ -->
+        <!-- Su nombre es Anders Hejlsberg. Un genio de la ingeniería... -->
+        <section id="scene-1" class="clip" data-start="5.43" data-duration="7.60" data-track-index="1">
+          <div class="badge-pill">
+            <div class="badge-dot" style="background: var(--accent-green);"></div>
+            <span>El Genio Danés</span>
+          </div>
+
+          <!-- Composición Fotográfica Real Doble (Retrato Oficial + Conferencia) -->
+          <div style="position: relative; width: 880px; height: 680px; margin-top: 10px;">
+            <!-- Foto 1: Retrato Principal Nítido -->
+            <div id="sc1-photo-frame" class="photo-frame" style="position: absolute; top: 0; left: 40px; width: 560px; height: 640px; z-index: 5;">
+              <img src="public/anders/portrait.jpg" alt="Anders Hejlsberg" />
+            </div>
+
+            <!-- Foto 2: Conferencia Técnica Flotante -->
+            <div id="sc1-photo-sub" class="photo-frame" style="position: absolute; bottom: 20px; right: 20px; width: 380px; height: 420px; z-index: 6; border: 4px solid #FFFFFF;">
+              <img src="public/anders/speaking.jpg" alt="Anders Conferencia" />
+            </div>
+          </div>
+
+          <!-- Lower-Third Moderno Modo Claro -->
+          <div id="sc1-lower-third" class="lower-third-light">
+            <div class="lt-title-row">
+              <span class="lt-name">Anders Hejlsberg</span>
+              <span class="lt-badge">Technical Fellow</span>
+            </div>
+            <div class="lt-sub">
+              Copenhague, 1960 · Arquitecto en Borland y Microsoft
+            </div>
+          </div>
+        </section>
+
+        <!-- ════════════════════ ESCENA 2: TURBO PASCAL 1983 (13.03s - 22.80s) ════════════════════ -->
+        <!-- En los ochenta, Anders escribió Turbo Pascal casi en solitario... -->
+        <section id="scene-2" class="clip" data-start="13.03" data-duration="9.77" data-track-index="1">
+          <div class="badge-pill">
+            <div class="badge-dot" style="background: var(--pascal-color);"></div>
+            <span>Borland · Innovación 1983</span>
+          </div>
+
+          <h2 class="headline-main" style="font-size: 80px; margin-bottom: 10px;">
+            TURBO <span style="color: var(--pascal-color);">PASCAL</span>
+          </h2>
+
+          <!-- Ventana de Código Pascal Modo Claro con Tecleo Real -->
+          <div id="sc2-code-window" class="code-window-light" style="border-color: rgba(234, 88, 12, 0.25);">
+            <div class="code-header-light">
+              <div class="code-dots">
+                <div class="code-dot dot-red"></div>
+                <div class="code-dot dot-yellow"></div>
+                <div class="code-dot dot-green"></div>
+              </div>
+              <div class="code-title-light">TURBO.PAS — Compilador en RAM</div>
+              <span style="font-size: 16px; font-weight: 800; color: var(--pascal-color); background: var(--pascal-bg); padding: 4px 14px; border-radius: 999px;">100x MÁS RÁPIDO</span>
+            </div>
+            <div class="code-body-light" id="sc2-code-text"></div>
+          </div>
+
+          <!-- Disquetes Originales de Wikimedia en Tarjeta Flotante -->
+          <div id="sc2-floppy-box" style="display: flex; align-items: center; gap: 30px; margin-top: 25px; width: 940px; background: #FFFFFF; border: 1px solid var(--border-card); padding: 18px 28px; border-radius: 24px; box-shadow: var(--shadow-sm);">
+            <img src="public/real/turbopascal_floppies.jpg" alt="Disquetes Turbo Pascal" style="width: 140px; height: 110px; object-fit: cover; border-radius: 16px; border: 1px solid var(--border-card);" />
+            <div>
+              <div style="font-size: 24px; font-weight: 800; color: var(--text-main);">Disquetes 5¼" Originales de 1983</div>
+              <div style="font-size: 18px; color: var(--text-muted); font-weight: 600; margin-top: 4px;">Todo el compilador + editor cabían en menos de 40 KB de RAM</div>
+            </div>
+          </div>
+
+          <!-- Odómetro 1983 -->
+          <div id="sc2-odometer" class="odometer-box-light" style="margin-top: 15px;">
+            <div class="odometer-num-light" id="sc2-year-num" style="color: var(--pascal-color);">1983</div>
+            <div class="odometer-label-light">Revolución en la Educación y Rendimiento</div>
+          </div>
+        </section>
+
+        <!-- ════════════════════ ESCENA 3: C# Y .NET (22.80s - 30.90s) ════════════════════ -->
+        <!-- Más tarde, se unió a Microsoft, donde diseñó C# y .NET... -->
+        <section id="scene-3" class="clip" data-start="22.80" data-duration="8.10" data-track-index="1">
+          <div class="badge-pill">
+            <div class="badge-dot" style="background: var(--csharp-color);"></div>
+            <span>Microsoft · Estándar Global</span>
+          </div>
+
+          <h2 class="headline-main" style="font-size: 80px; margin-bottom: 10px;">
+            NACE <span style="color: var(--csharp-color);">C# &amp; .NET</span>
+          </h2>
+
+          <!-- Ventana de Código C# Limpia con Tecleo Real -->
+          <div id="sc3-code-window" class="code-window-light" style="border-color: rgba(124, 58, 237, 0.25);">
+            <div class="code-header-light">
+              <div class="code-dots">
+                <div class="code-dot dot-red"></div>
+                <div class="code-dot dot-yellow"></div>
+                <div class="code-dot dot-green"></div>
+              </div>
+              <div class="code-title-light">Program.cs — Visual Studio &amp; CLR</div>
+              <span style="font-size: 16px; font-weight: 800; color: var(--csharp-color); background: var(--csharp-bg); padding: 4px 14px; border-radius: 999px;">ENTERPRISE READY</span>
+            </div>
+            <div class="code-body-light" id="sc3-code-text"></div>
+          </div>
+
+          <!-- Ecosistema Visual Studio & Windows -->
+          <div id="sc3-ecosystem-box" style="display: flex; gap: 20px; align-items: center; justify-content: center; margin-top: 25px;">
+            <div class="icon-box-light" style="width: 120px; height: 120px; background: var(--csharp-bg);"><img src="public/icons/csharp.svg" /></div>
+            <div class="icon-box-light" style="width: 120px; height: 120px; background: var(--dotnet-bg);"><img src="public/icons/dotnetcore.svg" /></div>
+            <div class="icon-box-light" style="width: 120px; height: 120px; background: #FAF5FF;"><img src="public/icons/visualstudio.svg" /></div>
+            <div class="icon-box-light" style="width: 120px; height: 120px; background: #F8FAFC;"><img src="public/icons2/windows.svg" /></div>
+          </div>
+
+          <!-- Odómetro 2000 -->
+          <div id="sc3-odometer" class="odometer-box-light" style="margin-top: 15px;">
+            <div class="odometer-num-light" id="sc3-year-num" style="color: var(--csharp-color);">2000</div>
+            <div class="odometer-label-light">El Pilar del Software Empresarial</div>
+          </div>
+        </section>
+
+        <!-- ════════════════════ ESCENA 4: TYPESCRIPT (30.90s - 42.20s) ════════════════════ -->
+        <!-- Ante el caótico mundo de JavaScript, Anders lideró TypeScript... -->
+        <section id="scene-4" class="clip" data-start="30.90" data-duration="11.30" data-track-index="1">
+          <div class="badge-pill">
+            <div class="badge-dot" style="background: var(--ts-color);"></div>
+            <span>La Era de la Web Moderna</span>
+          </div>
+
+          <h2 class="headline-main" style="font-size: 80px; margin-bottom: 10px;">
+            <span style="color: var(--ts-color);">TYPESCRIPT</span>
+          </h2>
+
+          <!-- Ventana de Código TypeScript Limpia con Tecleo Real -->
+          <div id="sc4-code-window" class="code-window-light" style="border-color: rgba(2, 132, 199, 0.25);">
+            <div class="code-header-light">
+              <div class="code-dots">
+                <div class="code-dot dot-red"></div>
+                <div class="code-dot dot-yellow"></div>
+                <div class="code-dot dot-green"></div>
+              </div>
+              <div class="code-title-light">index.ts — Tipado Estricto &amp; Autocompletado</div>
+              <span style="font-size: 16px; font-weight: 800; color: var(--ts-color); background: var(--ts-bg); padding: 4px 14px; border-radius: 999px;">TYPE SAFETY</span>
+            </div>
+            <div class="code-body-light" id="sc4-code-text"></div>
+          </div>
+
+          <!-- Metáfora de Victoria: JavaScript Bugs ➔ TypeScript Shield -->
+          <div style="display: flex; align-items: center; justify-content: center; gap: 30px; margin-top: 25px;">
+            <div id="sc4-js-box" class="icon-box-light" style="width: 140px; height: 140px; border-color: #FACC15; background: #FEFCE8; position: relative;">
+              <img src="public/icons/javascript.svg" alt="JS" />
+              <!-- Bugs escapando -->
+              <div id="sc4-bug-1" style="position: absolute; top: -14px; right: -14px; width: 38px; height: 38px; background: #EF4444; border-radius: 50%; padding: 6px;"><img src="public/icons2/bug.svg" /></div>
+            </div>
+
+            <div id="sc4-arrow" style="font-size: 54px; font-weight: 900; color: var(--ts-color);">➔</div>
+
+            <div id="sc4-ts-box" class="icon-box-light" style="width: 160px; height: 160px; border-color: var(--ts-color); background: var(--ts-bg); position: relative;">
+              <img src="public/icons/typescript.svg" alt="TS" />
+              <!-- Escudo de protección -->
+              <div id="sc4-shield" style="position: absolute; top: -14px; right: -14px; width: 44px; height: 44px; background: #0284C7; border-radius: 50%; padding: 8px;"><img src="public/icons2/shield.svg" /></div>
+            </div>
+          </div>
+
+          <!-- Odómetro 2012 -->
+          <div id="sc4-odometer" class="odometer-box-light" style="margin-top: 15px;">
+            <div class="odometer-num-light" id="sc4-year-num" style="color: var(--ts-color);">2012</div>
+            <div class="odometer-label-light">Escalabilidad y Seguridad para la Web</div>
+          </div>
+        </section>
+
+        <!-- ════════════════════ ESCENA 5: LEGADO Y VISIÓN (42.20s - 53.50s) ════════════════════ -->
+        <!-- Desde compilar código máquina puro hasta dominar la web... -->
+        <section id="scene-5" class="clip" data-start="42.20" data-duration="11.30" data-track-index="1">
+          <div class="badge-pill">
+            <div class="badge-dot" style="background: var(--accent-green);"></div>
+            <span>Su Filosofía</span>
+          </div>
+
+          <!-- Tarjeta de Cita Célebre Monumental -->
+          <div id="sc5-quote-card" class="card-clean" style="width: 920px; padding: 48px 56px; text-align: center; margin-top: 15px;">
+            <div style="font-size: 46px; font-weight: 900; line-height: 1.35; color: var(--text-main); font-family: var(--font-display);">
+              “Crear herramientas elegantes que <span style="color: var(--accent-blue);">empoderen</span> a los desarrolladores.”
+            </div>
+            <div style="margin-top: 26px; font-size: 24px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px;">
+              — Anders Hejlsberg
+            </div>
+          </div>
+
+          <!-- Fila de Trofeos de Software Global -->
+          <div id="sc5-icons-row" style="display: flex; gap: 24px; margin-top: 40px;">
+            <div class="icon-box-light" style="width: 140px; height: 140px; background: var(--csharp-bg);"><img src="public/icons/csharp.svg" /></div>
+            <div class="icon-box-light" style="width: 140px; height: 140px; background: var(--ts-bg);"><img src="public/icons/typescript.svg" /></div>
+            <div class="icon-box-light" style="width: 140px; height: 140px; background: var(--dotnet-bg);"><img src="public/icons/dotnetcore.svg" /></div>
+            <div class="icon-box-light" style="width: 140px; height: 140px; background: #F0FDF4;"><img src="public/icons/vscode.svg" /></div>
+          </div>
+
+          <!-- Conclusión Estilo Badge de Impacto -->
+          <div style="margin-top: 45px; background: #F8FAFC; border: 1px solid var(--border-card); padding: 18px 36px; border-radius: 999px; font-size: 26px; font-weight: 800; color: var(--text-main);">
+            🚀 4 DÉCADAS TRANSFORMANDO EL SOFTWARE MUNDIAL
+          </div>
+        </section>
+
+      </div> <!-- fin #stage -->
+    </div> <!-- fin #stage-wrapper -->
+
+    <!-- ════════════════════ PANEL DE CONTROL DE REPRODUCCIÓN ════════════════════ -->
+    <div id="player-controls">
+      <button class="btn-control" id="btn-play-pause">▶ Play</button>
+      <input type="range" class="slider-time" id="time-slider" min="0" max="53.5" step="0.033" value="0" />
+      <span class="time-display" id="time-text">00:00 / 00:53</span>
+      
+      <select class="scene-selector" id="scene-jump">
+        <option value="0">1. Gancho (0s)</option>
+        <option value="5.43">2. Anders (5.4s)</option>
+        <option value="13.03">3. Turbo Pascal (13.0s)</option>
+        <option value="22.80">4. C# &amp; .NET (22.8s)</option>
+        <option value="30.90">5. TypeScript (30.9s)</option>
+        <option value="42.20">6. Legado (42.2s)</option>
+      </select>
+
+      <button class="btn-control" id="btn-fullscreen">🔍 Escalar</button>
+    </div>
+
+  </div> <!-- fin #viewport-container -->
+
+  <!-- ════════════════════ LÓGICA DE ANIMACIÓN GSAP Y MOTOR HYPERFRAMES ════════════════════ -->
+  <script>
+    /* ════════════════════ CONFIGURACIÓN DE AUDIO MULTI-PISTA SINCRONIZADA ════════════════════ */
+    const voiceAudio = document.getElementById('audio-voice');
+    const sfxAudio = document.getElementById('audio-sfx');
+    const musicAudio = document.getElementById('audio-music');
+
+    // Calibración de volumen
+    voiceAudio.volume = 1.0;     // Voz al frente absoluta
+    sfxAudio.volume = 0.40;       // Efectos acústicos calibrados (-7.5 dBFS)
+    musicAudio.volume = 0.08;     // Música ambiente Lo-Fi suave
+
+    /* ════════════════════ TIMELINE MAESTRO DETERMINISTA HYPERFRAMES ════════════════════ */
+    const masterTimeline = gsap.timeline({ paused: true });
+
+    function flashTransition() {
+      gsap.fromTo("#flash-overlay", { opacity: 0.6 }, { opacity: 0, duration: 0.3, ease: "power2.out" });
+    }
+
+    // ──────────────── ESCENA 0: GANCHO (0s - 5.43s) ────────────────
+    masterTimeline.call(() => flashTransition(), null, 0.0);
+    masterTimeline.to("#scene-0", { autoAlpha: 1, duration: 0.35 }, 0.0);
+    masterTimeline.from("#scene-0 .badge-pill", { y: -40, opacity: 0, duration: 0.6, ease: "back.out(1.7)" }, 0.1);
+    masterTimeline.from("#scene-0 .headline-main", { scale: 0.85, opacity: 0, duration: 0.7, ease: "power3.out" }, 0.2);
+    masterTimeline.from("#sc0-node-csharp", { scale: 0, rotation: -20, opacity: 0, duration: 0.6, ease: "elastic.out(1, 0.6)" }, 0.9);
+    masterTimeline.from("#sc0-node-ts", { scale: 0, rotation: 20, opacity: 0, duration: 0.6, ease: "elastic.out(1, 0.6)" }, 1.45);
+    masterTimeline.from("#sc0-node-pascal", { scale: 0, y: 50, opacity: 0, duration: 0.6, ease: "elastic.out(1, 0.6)" }, 2.0);
+    masterTimeline.from("#sc0-center-pill", { scale: 0, opacity: 0, duration: 0.5, ease: "back.out(2)" }, 2.65);
+    masterTimeline.to("#scene-0", { autoAlpha: 0, scale: 0.96, duration: 0.3, ease: "power2.in" }, 5.15);
+
+    // ──────────────── ESCENA 1: ANDERS HEJLSBERG (5.43s - 13.03s) ────────────────
+    masterTimeline.call(() => flashTransition(), null, 5.43);
+    masterTimeline.to("#scene-1", { autoAlpha: 1, duration: 0.35 }, 5.43);
+    masterTimeline.from("#sc1-photo-frame", { scale: 0.9, opacity: 0, duration: 0.8, ease: "power3.out" }, 5.6);
+    masterTimeline.from("#sc1-photo-sub", { scale: 0, rotation: 8, opacity: 0, duration: 0.7, ease: "back.out(1.6)" }, 6.4);
+    masterTimeline.from("#sc1-lower-third", { y: 50, opacity: 0, duration: 0.7, ease: "back.out(1.5)" }, 7.5);
+    masterTimeline.to("#scene-1", { autoAlpha: 0, y: -30, duration: 0.3, ease: "power2.in" }, 12.75);
+
+    // ──────────────── ESCENA 2: TURBO PASCAL 1983 (13.03s - 22.80s) ────────────────
+    masterTimeline.call(() => flashTransition(), null, 13.03);
+    masterTimeline.to("#scene-2", { autoAlpha: 1, duration: 0.35 }, 13.03);
+    masterTimeline.from("#scene-2 .headline-main", { y: -30, opacity: 0, duration: 0.6, ease: "power3.out" }, 13.1);
+    masterTimeline.from("#sc2-code-window", { scale: 0.9, opacity: 0, duration: 0.7, ease: "back.out(1.4)" }, 13.4);
+    masterTimeline.from("#sc2-floppy-box", { y: 40, opacity: 0, duration: 0.6, ease: "power2.out" }, 15.6);
+    // Odómetro 1975 -> 1983
+    const yrPascal = { yr: 1975 };
+    masterTimeline.to(yrPascal, {
+      yr: 1983,
+      duration: 2.0,
+      ease: "power2.out",
+      onUpdate: () => {
+        const el = document.getElementById('sc2-year-num');
+        if (el) el.textContent = Math.round(yrPascal.yr);
+      }
+    }, 14.5);
+    masterTimeline.to("#scene-2", { autoAlpha: 0, scale: 0.96, duration: 0.3, ease: "power2.in" }, 22.5);
+
+    // ──────────────── ESCENA 3: C# Y .NET (22.80s - 30.90s) ────────────────
+    masterTimeline.call(() => flashTransition(), null, 22.80);
+    masterTimeline.to("#scene-3", { autoAlpha: 1, duration: 0.35 }, 22.80);
+    masterTimeline.from("#scene-3 .headline-main", { scale: 0.85, opacity: 0, duration: 0.6, ease: "power3.out" }, 22.9);
+    masterTimeline.from("#sc3-code-window", { y: 40, opacity: 0, duration: 0.7, ease: "back.out(1.3)" }, 23.2);
+    masterTimeline.from("#sc3-ecosystem-box .icon-box-light", { scale: 0, opacity: 0, stagger: 0.12, duration: 0.5, ease: "back.out(1.8)" }, 25.8);
+    // Odómetro 1990 -> 2000
+    const yrCSharp = { yr: 1990 };
+    masterTimeline.to(yrCSharp, {
+      yr: 2000,
+      duration: 2.0,
+      ease: "power2.out",
+      onUpdate: () => {
+        const el = document.getElementById('sc3-year-num');
+        if (el) el.textContent = Math.round(yrCSharp.yr);
+      }
+    }, 24.0);
+    masterTimeline.to("#scene-3", { autoAlpha: 0, y: -30, duration: 0.3, ease: "power2.in" }, 30.6);
+
+    // ──────────────── ESCENA 4: TYPESCRIPT (30.90s - 42.20s) ────────────────
+    masterTimeline.call(() => flashTransition(), null, 30.90);
+    masterTimeline.to("#scene-4", { autoAlpha: 1, duration: 0.35 }, 30.90);
+    masterTimeline.from("#sc4-code-window", { scale: 0.9, opacity: 0, duration: 0.7, ease: "back.out(1.4)" }, 31.0);
+    masterTimeline.from("#sc4-js-box", { x: -50, opacity: 0, duration: 0.5, ease: "power3.out" }, 33.3);
+    masterTimeline.from("#sc4-bug-1", { scale: 0, duration: 0.35, ease: "bounce.out" }, 33.7);
+    masterTimeline.from("#sc4-arrow", { scale: 0, opacity: 0, duration: 0.4, ease: "back.out(2)" }, 35.5);
+    masterTimeline.from("#sc4-ts-box", { scale: 0, opacity: 0, duration: 0.6, ease: "elastic.out(1, 0.6)" }, 36.6);
+    masterTimeline.from("#sc4-shield", { scale: 0, rotation: -45, duration: 0.45, ease: "back.out(2)" }, 37.3);
+    // Odómetro 2008 -> 2012
+    const yrTS = { yr: 2008 };
+    masterTimeline.to(yrTS, {
+      yr: 2012,
+      duration: 1.8,
+      ease: "power2.out",
+      onUpdate: () => {
+        const el = document.getElementById('sc4-year-num');
+        if (el) el.textContent = Math.round(yrTS.yr);
+      }
+    }, 33.0);
+    masterTimeline.to("#scene-4", { autoAlpha: 0, scale: 0.96, duration: 0.3, ease: "power2.in" }, 41.9);
+
+    // ──────────────── ESCENA 5: LEGADO Y VISIÓN (42.20s - 53.50s) ────────────────
+    masterTimeline.call(() => flashTransition(), null, 42.20);
+    masterTimeline.to("#scene-5", { autoAlpha: 1, duration: 0.35 }, 42.20);
+    masterTimeline.from("#sc5-quote-card", { y: 50, opacity: 0, duration: 0.8, ease: "back.out(1.5)" }, 42.4);
+    masterTimeline.from("#sc5-icons-row .icon-box-light", { scale: 0, opacity: 0, stagger: 0.12, duration: 0.6, ease: "elastic.out(1, 0.6)" }, 44.0);
+    masterTimeline.to("#scene-5", { opacity: 0.98, duration: 9 }, 45.0);
+
+    /* ════════════════════ MOTOR DINÁMICO DE SUBTÍTULOS CINÉTICOS (CUES) ════════════════════ */
+    const subtitlesContainer = document.getElementById('kinetic-subtitles-layer');
+    let currentRenderedChunkIndex = -1;
+
+    function updateKineticSubtitles(t) {
+      if (!window.CUES || !window.CUES.captions) return;
+      
+      const activeChunk = window.CUES.captions.find(c => t >= c.s && t <= c.e);
+      
+      if (!activeChunk) {
+        if (currentRenderedChunkIndex !== -1) {
+          subtitlesContainer.innerHTML = '';
+          currentRenderedChunkIndex = -1;
+        }
+        return;
+      }
+
+      // Si cambió el chunk actual, reconstruir el nodo HTML
+      if (activeChunk.i !== currentRenderedChunkIndex) {
+        currentRenderedChunkIndex = activeChunk.i;
+        subtitlesContainer.innerHTML = '';
+
+        const bubble = document.createElement('div');
+        bubble.className = `kinetic-caption-bubble style-${activeChunk.style}`;
+        bubble.id = `caption-chunk-${activeChunk.i}`;
+        bubble.style.top = `${activeChunk.slot}px`;
+        bubble.style.transform = `translateX(calc(-50% + ${activeChunk.dx}px)) rotate(${activeChunk.rot}deg)`;
+
+        // Construir palabras con sus marcas de tiempo
+        activeChunk.words.forEach((w, wIdx) => {
+          const span = document.createElement('span');
+          span.className = `caption-word ${w.emph ? 'word-emph' : ''}`;
+          span.id = `cap-w-${activeChunk.i}-${wIdx}`;
+          span.textContent = w.t;
+          bubble.appendChild(span);
+        });
+
+        subtitlesContainer.appendChild(bubble);
+        
+        // Animación de entrada punchy
+        gsap.fromTo(bubble, 
+          { scale: 0.82, opacity: 0, y: 18 }, 
+          { scale: 1, opacity: 1, y: 0, duration: 0.22, ease: "back.out(2)" }
+        );
+      }
+
+      // Actualizar estado activo de cada palabra individual
+      activeChunk.words.forEach((w, wIdx) => {
+        const el = document.getElementById(`cap-w-${activeChunk.i}-${wIdx}`);
+        if (!el) return;
+        const isWordActive = (t >= w.s && t <= w.e);
+        if (isWordActive) {
+          el.classList.add('word-active');
+        } else {
+          el.classList.remove('word-active');
+        }
+      });
+    }
+
+    /* ════════════════════ MOTOR DE TECLEO EXACTO SINCRONIZADO AL AUDIO ════════════════════ */
+    function updateTypingCode(t) {
+      if (!window.CUES || !window.CUES.typing) return;
+
+      // 1. Pascal (14.0s - 18.4s)
+      const pData = window.CUES.typing.pascal;
+      const pEl = document.getElementById('sc2-code-text');
+      if (pEl) {
+        if (t < pData.start) {
+          pEl.textContent = '';
+        } else {
+          let count = 0;
+          for (let i = 0; i < pData.times.length; i++) {
+            if (t >= pData.times[i]) count++;
+            else break;
+          }
+          const textShown = pData.text.slice(0, count);
+          const cursor = (t >= pData.start && t <= pData.end + 0.8) ? '<span class="typing-cursor">▋</span>' : '';
+          pEl.innerHTML = textShown + cursor;
+        }
+      }
+
+      // 2. C# (23.5s - 28.3s)
+      const cData = window.CUES.typing.csharp;
+      const cEl = document.getElementById('sc3-code-text');
+      if (cEl) {
+        if (t < cData.start) {
+          cEl.textContent = '';
+        } else {
+          let count = 0;
+          for (let i = 0; i < cData.times.length; i++) {
+            if (t >= cData.times[i]) count++;
+            else break;
+          }
+          const textShown = cData.text.slice(0, count);
+          const cursor = (t >= cData.start && t <= cData.end + 0.8) ? '<span class="typing-cursor">▋</span>' : '';
+          cEl.innerHTML = textShown + cursor;
+        }
+      }
+
+      // 3. TypeScript (31.4s - 37.0s)
+      const tsData = window.CUES.typing.ts;
+      const tsEl = document.getElementById('sc4-code-text');
+      if (tsEl) {
+        if (t < tsData.start) {
+          tsEl.textContent = '';
+        } else {
+          let count = 0;
+          for (let i = 0; i < tsData.times.length; i++) {
+            if (t >= tsData.times[i]) count++;
+            else break;
+          }
+          const textShown = tsData.text.slice(0, count);
+          const cursor = (t >= tsData.start && t <= tsData.end + 0.8) ? '<span class="typing-cursor">▋</span>' : '';
+          tsEl.innerHTML = textShown + cursor;
+        }
+      }
+    }
+
+    /* ════════════════════ REGISTRO HYPERFRAMES ════════════════════ */
+    window.__timelines = window.__timelines || {};
+    window.__timelines.anders = masterTimeline;
+
+    /* ════════════════════ REPRODUCTOR Y CONTROL MASTER ════════════════════ */
+    const playPauseBtn = document.getElementById('btn-play-pause');
+    const timeSlider = document.getElementById('time-slider');
+    const timeText = document.getElementById('time-text');
+    const sceneJump = document.getElementById('scene-jump');
+    let isPlaying = false;
+    let animFrameId = null;
+
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function syncTime(timeSec) {
+      masterTimeline.time(timeSec);
+      voiceAudio.currentTime = timeSec;
+      sfxAudio.currentTime = timeSec;
+      musicAudio.currentTime = timeSec % (musicAudio.duration || 60);
+      timeSlider.value = timeSec;
+      timeText.textContent = formatTime(timeSec) + ' / 00:53';
+      
+      updateKineticSubtitles(timeSec);
+      updateTypingCode(timeSec);
+    }
+
+    function play() {
+      isPlaying = true;
+      playPauseBtn.textContent = '⏸ Pausa';
+      voiceAudio.play();
+      sfxAudio.play();
+      musicAudio.play();
+
+      function loop() {
+        if (!isPlaying) return;
+        const currentSec = voiceAudio.currentTime;
+        masterTimeline.time(currentSec);
+        timeSlider.value = currentSec;
+        timeText.textContent = formatTime(currentSec) + ' / 00:53';
+
+        updateKineticSubtitles(currentSec);
+        updateTypingCode(currentSec);
+
+        // Auto-sincronizar sfxAudio si deriva por más de 60ms
+        if (Math.abs(sfxAudio.currentTime - currentSec) > 0.06) {
+          sfxAudio.currentTime = currentSec;
+        }
+
+        if (currentSec >= 53.5) {
+          pause();
+          syncTime(0);
+        } else {
+          animFrameId = requestAnimationFrame(loop);
+        }
+      }
+      loop();
+    }
+
+    function pause() {
+      isPlaying = false;
+      playPauseBtn.textContent = '▶ Play';
+      voiceAudio.pause();
+      sfxAudio.pause();
+      musicAudio.pause();
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+    }
+
+    playPauseBtn.addEventListener('click', () => {
+      if (isPlaying) pause();
+      else play();
+    });
+
+    timeSlider.addEventListener('input', (e) => {
+      const targetSec = parseFloat(e.target.value);
+      syncTime(targetSec);
+    });
+
+    sceneJump.addEventListener('change', (e) => {
+      const targetSec = parseFloat(e.target.value);
+      syncTime(targetSec);
+      if (isPlaying) play();
+    });
+
+    let isFit = true;
+    const stage = document.getElementById('stage');
+    const stageWrapper = document.getElementById('stage-wrapper');
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (isFit) {
+        stageWrapper.style.width = '1080px';
+        stageWrapper.style.height = '1920px';
+        stage.style.transform = 'scale(1)';
+        stageWrapper.style.overflow = 'auto';
+        isFit = false;
+      } else {
+        stageWrapper.style.width = '486px';
+        stageWrapper.style.height = '864px';
+        stage.style.transform = 'scale(0.45)';
+        stageWrapper.style.overflow = 'hidden';
+        isFit = true;
+      }
+    });
+
+    // Inicializar en 0.0s
+    syncTime(0);
+  </script>
+</body>
+</html>
